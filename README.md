@@ -63,7 +63,7 @@ Owner
     remove_pet(pet_name: str) -> None
     get_pets() -> list[Pet]
     set_available_time(minutes: int) -> None
-    
+
 Pet
     Attributes:
 
@@ -110,3 +110,32 @@ Schedule
     get_total_duration() -> int — sums duration of all scheduled entries
     get_explanation() -> str — returns a human-readable string explaining each scheduling decision
     display() -> list[dict] — returns entries formatted for st.table()
+
+
+# "Testing PawPal+"
+
+    # Running:
+        - python -m pytest
+
+    # Description
+        - Task basics — creating tasks, marking complete/incomplete, priority scores, feasibility checks, and serialization via to_dict.
+
+        Task validation — rejects empty titles, zero/negative durations, and invalid priority strings at construction time.
+
+        Recurrence logic — get_next_occurrence returns None for one-off tasks, advances by 1 day for daily, 7 days for weekly, and copies all attributes to the new task.
+
+        Pet management — adding/removing tasks, blocking duplicate task titles (case-insensitive), retrieving high-priority tasks, and the edge case of a pet with no tasks.
+
+        Owner management — adding/removing pets, blocking duplicate pet names, and validating the time budget.
+
+        Sorting correctness — sort_by_time() always returns entries in ascending chronological order; high-priority tasks are placed before low-priority ones; meds get a bonus that elevates them above same-priority non-medical tasks.
+
+        Conflict detection — find_conflicts flags overlapping time slots across different pets, returns nothing when slots don't overlap, never flags a single pet's own sequential tasks as conflicts, and handles an empty schedule list safely.
+
+        Skipping logic — already-completed tasks and tasks that exceed the owner's time budget are both moved to skipped_tasks with explanatory reasons.
+
+        Owner preferences — a cutoff-hour preference correctly blocks tasks that would run past the allowed window.
+
+        Display/explanation — display() returns all required keys; get_explanation() produces a meaningful message even when there are no tasks.
+
+    # Confidence score: 5
