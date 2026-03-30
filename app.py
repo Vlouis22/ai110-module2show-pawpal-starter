@@ -14,6 +14,8 @@ if "active_pet_name" not in st.session_state:
     st.session_state.active_pet_name = None
 if "last_schedule" not in st.session_state:
     st.session_state.last_schedule = None
+if "last_schedules" not in st.session_state:
+    st.session_state.last_schedules = {}   # pet_name → Schedule (for conflict detection)
 
 # ── Sidebar: Owner Setup ───────────────────────────────────────────────────────
 with st.sidebar:
@@ -74,6 +76,7 @@ with st.sidebar:
             st.session_state.owner = None
             st.session_state.active_pet_name = None
             st.session_state.last_schedule = None
+            st.session_state.last_schedules = {}
             st.rerun()
 
 # ── Guard: require owner before showing any main content ─────────────────────
@@ -117,7 +120,8 @@ with tab_pets:
                 new_pet = Pet(name=ap_name, species=ap_species, age=ap_age, special_needs=needs)
                 owner.add_pet(new_pet)
                 st.session_state.active_pet_name = new_pet.name
-                st.session_state.last_schedule = None  # pet list changed — clear stale schedule
+                st.session_state.last_schedule = None
+                st.session_state.last_schedules = {}   # pet list changed — clear stale schedules
                 st.success(f"✅ {ap_name} added!")
                 st.rerun()
             except ValueError as e:
@@ -155,6 +159,7 @@ with tab_pets:
                 owner.remove_pet(active_pet.name)
                 st.session_state.active_pet_name = None
                 st.session_state.last_schedule = None
+                st.session_state.last_schedules.pop(active_pet.name, None)
                 st.rerun()
             except ValueError as e:
                 st.error(str(e))
@@ -202,40 +207,68 @@ with tab_pets:
         if not active_pet.tasks:
             st.info("No tasks yet — add one above.")
         else:
-            # Header row
-            h1, h2, h3, h4, h5, h6 = st.columns([3, 2, 1, 2, 1, 1])
-            h1.caption("**Task**")
-            h2.caption("**Type · Priority**")
-            h3.caption("**Min**")
-            h4.caption("**Notes**")
-            h5.caption("**Status**")
-            h6.caption("**Del**")
+            # ── High-priority alert (uses get_high_priority_tasks) ────────────
+            pending_high = [
+                t for t in active_pet.get_high_priority_tasks()
+                if not t.is_completed()
+            ]
+            if pending_high:
+                titles = ", ".join(f"**{t.title}**" for t in pending_high)
+                st.warning(
+                    f"⚠️ {len(pending_high)} high-priority task(s) still pending: {titles}. "
+                    "Make sure these are scheduled today!"
+                )
 
-            for i, task in enumerate(active_pet.tasks):
-                c1, c2, c3, c4, c5, c6 = st.columns([3, 2, 1, 2, 1, 1])
-                c1.write(task.title)
-                c2.caption(f"{task.task_type} · {task.priority}")
-                c3.caption(str(task.duration_minutes))
-                c4.caption(task.notes or "—")
+            # ── Status filter (uses filter_by_status via Schedule helper) ─────
+            filter_status = st.radio(
+                "Show tasks:", ["all", "pending", "completed"],
+                horizontal=True, key=f"filter_{active_pet.name}"
+            )
+            if filter_status == "all":
+                tasks_to_show = active_pet.tasks
+            else:
+                tasks_to_show = [t for t in active_pet.tasks if t.status == filter_status]
 
-                # Toggle complete / pending
-                toggle_label = "✅" if task.is_completed() else "⬜"
-                if c5.button(toggle_label, key=f"toggle_{active_pet.name}_{i}"):
-                    if task.is_completed():
-                        task.mark_incomplete()
-                    else:
-                        task.mark_complete()
-                    st.session_state.last_schedule = None
-                    st.rerun()
+            if not tasks_to_show:
+                st.info(f"No {filter_status} tasks.")
+            else:
+                PRIORITY_BADGE = {"high": "🔴", "medium": "🟡", "low": "🟢"}
 
-                # Delete task
-                if c6.button("🗑", key=f"del_{active_pet.name}_{i}"):
-                    try:
-                        active_pet.remove_task(task.title)
+                # Header row
+                h1, h2, h3, h4, h5, h6 = st.columns([3, 2, 1, 2, 1, 1])
+                h1.caption("**Task**")
+                h2.caption("**Type · Priority**")
+                h3.caption("**Min**")
+                h4.caption("**Notes**")
+                h5.caption("**Status**")
+                h6.caption("**Del**")
+
+                for i, task in enumerate(tasks_to_show):
+                    c1, c2, c3, c4, c5, c6 = st.columns([3, 2, 1, 2, 1, 1])
+                    badge = PRIORITY_BADGE.get(task.priority, "")
+                    c1.write(task.title)
+                    c2.caption(f"{task.task_type} · {badge} {task.priority}")
+                    c3.caption(str(task.duration_minutes))
+                    c4.caption(task.notes or "—")
+
+                    # Toggle complete / pending
+                    toggle_label = "✅" if task.is_completed() else "⬜"
+                    if c5.button(toggle_label, key=f"toggle_{active_pet.name}_{i}"):
+                        if task.is_completed():
+                            task.mark_incomplete()
+                        else:
+                            task.mark_complete()
                         st.session_state.last_schedule = None
                         st.rerun()
-                    except ValueError as e:
-                        st.error(str(e))
+
+                    # Delete task
+                    if c6.button("🗑", key=f"del_{active_pet.name}_{i}"):
+                        try:
+                            active_pet.remove_task(task.title)
+                            st.session_state.last_schedule = None
+                            st.rerun()
+                        except ValueError as e:
+                            st.error(str(e))
 
 # =============================================================================
 # TAB 2 — Schedule
@@ -271,6 +304,8 @@ with tab_schedule:
                 )
                 schedule.generate()
                 st.session_state.last_schedule = schedule
+                # Store per-pet so we can detect cross-pet conflicts
+                st.session_state.last_schedules[sched_pet_name] = schedule
                 st.rerun()
 
             # ── Display last generated schedule ───────────────────────────────
@@ -282,16 +317,58 @@ with tab_schedule:
 
                 st.divider()
 
+                # ── Cross-pet conflict detection ──────────────────────────────
+                all_schedules = list(st.session_state.last_schedules.values())
+                if len(all_schedules) > 1:
+                    conflicts = Schedule.find_conflicts(all_schedules)
+                    if conflicts:
+                        st.warning(
+                            f"⚠️ **Schedule Conflict Detected!** Two of your pets have "
+                            "overlapping task times. As a pet owner this means you may not "
+                            "be able to be in two places at once. Please adjust durations, "
+                            "available time, or add preferences to space tasks apart."
+                        )
+                        for conflict_msg in conflicts:
+                            st.warning(f"🕐 {conflict_msg}")
+
                 # Summary metrics
                 sm1, sm2, sm3 = st.columns(3)
                 sm1.metric("Tasks scheduled", len(schedule.entries))
                 sm2.metric("Time used", f"{total} min")
                 sm3.metric("Time remaining", f"{budget - total} min")
 
-                # Schedule table
+                # ── Pending tasks not in schedule ─────────────────────────────
+                pending_unscheduled = schedule.filter_by_status("pending")
+                scheduled_titles = {e["task"].title for e in schedule.entries}
+                leftover = [t for t in pending_unscheduled if t.title not in scheduled_titles]
+                if leftover:
+                    st.warning(
+                        f"⚠️ {len(leftover)} pending task(s) could not be fit into today's "
+                        f"schedule: {', '.join(t.title for t in leftover)}. "
+                        "Consider increasing your available time or removing lower-priority tasks."
+                    )
+
+                # ── Schedule table (sorted chronologically via sort_by_time) ──
                 if schedule.entries:
                     st.subheader("Schedule")
-                    st.table(schedule.display())
+                    PRIORITY_BADGE = {"high": "🔴", "medium": "🟡", "low": "🟢"}
+                    sorted_entries = schedule.sort_by_time()
+                    display_rows = [
+                        {
+                            "Time": f"{e['start_time']} – {e['end_time']}",
+                            "Task": e["task"].title,
+                            "Type": e["task"].task_type,
+                            "Priority": f"{PRIORITY_BADGE.get(e['task'].priority, '')} {e['task'].priority}",
+                            "Duration (min)": e["task"].duration_minutes,
+                            "Notes": e["task"].notes or "—",
+                        }
+                        for e in sorted_entries
+                    ]
+                    st.success(
+                        f"✅ Schedule generated for **{sched_pet.name}** on {sched_date} — "
+                        f"{len(schedule.entries)} task(s) across {total} minutes."
+                    )
+                    st.table(display_rows)
                 else:
                     st.warning("No tasks could be scheduled with the current constraints.")
 
