@@ -1,6 +1,14 @@
 # PawPal+ Project Reflection
 
 ## 1. System Design
+I chose the follwowing 4 classes:
+    Owner: Represents the pet owner. It includes attributes like the owner's name, available time, preferences, and a list of their pets. Methods allow managing pets and setting available time.
+
+    Pet: Represents a pet owned by the owner. It includes attributes like the pet's name, species, age, special needs, and a list of tasks. Methods allow managing tasks and retrieving high-priority tasks.
+
+    Task: Represents a specific care task for a pet. Attributes include the task's title, duration, priority, type, and notes. Methods help determine task priority, feasibility, and provide task details as a dictionary.
+
+    Schedule: Represents the daily schedule for pet care. It includes attributes like the date, the owner, the pet, scheduled entries, and skipped tasks. Methods handle generating the schedule, filtering tasks, sorting by priority, assigning times, and providing explanations for scheduling decisions.
 
 **a. Initial design**
 

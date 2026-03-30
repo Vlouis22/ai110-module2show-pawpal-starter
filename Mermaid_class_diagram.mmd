@@ -1,0 +1,54 @@
+classDiagram
+    class Owner {
+        - name: str
+        - available_minutes: int
+        - preferences: list[str]
+        - pets: list[Pet]
+        + add_pet(pet: Pet) -> None
+        + remove_pet(pet_name: str) -> None
+        + get_pets() -> list[Pet]
+        + set_available_time(minutes: int) -> None
+    }
+
+    class Pet {
+        - name: str
+        - species: str
+        - age: int
+        - special_needs: list[str]
+        - tasks: list[Task]
+        + add_task(task: Task) -> None
+        + remove_task(task_title: str) -> None
+        + get_tasks() -> list[Task]
+        + get_high_priority_tasks() -> list[Task]
+    }
+
+    class Task {
+        - title: str
+        - duration_minutes: int
+        - priority: str
+        - task_type: str
+        - notes: str
+        + get_priority_score() -> int
+        + is_feasible(available_minutes: int) -> bool
+        + to_dict() -> dict
+    }
+
+    class Schedule {
+        - date: str
+        - owner: Owner
+        - pet: Pet
+        - entries: list[dict]
+        - skipped_tasks: list[dict]
+        + generate() -> None
+        + _filter_feasible(tasks: list[Task]) -> list[Task]
+        + _sort_by_priority(tasks: list[Task]) -> list[Task]
+        + _assign_times(tasks: list[Task]) -> list[dict]
+        + get_total_duration() -> int
+        + get_explanation() -> str
+        + display() -> list[dict]
+    }
+
+    Owner "1" --> "*" Pet
+    Pet "1" --> "*" Task
+    Schedule "1" --> "1" Owner
+    Schedule "1" --> "1" Pet
