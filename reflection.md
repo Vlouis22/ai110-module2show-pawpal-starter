@@ -34,6 +34,8 @@ I chose the follwowing 4 classes:
 - Describe one tradeoff your scheduler makes.
 - Why is that tradeoff reasonable for this scenario?
 
+A tradeoff that the ai suggests was to group by pet first, then use product. Using the if statement "if pet_a == pet_b: continue" generates same-pet pairs only to throw them away after, grouing would eliminate that waste entirely. 
+
 ---
 
 ## 3. AI Collaboration
@@ -41,7 +43,12 @@ I chose the follwowing 4 classes:
 **a. How you used AI**
 
 - How did you use AI tools during this project (for example: design brainstorming, debugging, refactoring)?
+
+    I find AI very useful for brainstorming, it increases my speed by a lot. I usually spend so much time brainstorming but now there's a tool that does it and even show more options than i could have come up with. Building this project myself with no ai, it would have taken me at least 2 hours just for brainstorming and coming up with the skeleton/diagram. 
+
 - What kinds of prompts or questions were most helpful?
+
+    The kind of prompts that i find most useful is telling it to think of edge cases before implementing, it usually acuatlly finds 2-3 edge cases worth looking over.
 
 **b. Judgment and verification**
 

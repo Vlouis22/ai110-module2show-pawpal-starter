@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 import re
 
 
@@ -18,7 +18,9 @@ class Task:
     priority: str        # "low", "medium", "high"
     task_type: str       # "walk", "feeding", "meds", "grooming", "enrichment"
     notes: str = ""
-    status: str = "pending"   # "pending" or "completed"
+    status: str = "pending"        # "pending" or "completed"
+    frequency: str = "once"        # "once", "daily", "weekly"
+    due_date: str = ""             # ISO date string, e.g. "2025-03-29"
 
     def __post_init__(self):
         """Validate fields immediately after construction."""
@@ -53,6 +55,28 @@ class Task:
         """Returns True if the task duration fits within the given available minutes."""
         return self.duration_minutes <= available_minutes
 
+    def get_next_occurrence(self, from_date: str) -> "Task | None":
+        """
+        For recurring tasks, returns a new Task due on the next occurrence.
+        - "daily"  → from_date + 1 day
+        - "weekly" → from_date + 7 days
+        Returns None for one-off tasks (frequency == "once").
+        """
+        if self.frequency == "once":
+            return None
+        base = date.fromisoformat(from_date)
+        delta = timedelta(days=1) if self.frequency == "daily" else timedelta(weeks=1)
+        next_due = (base + delta).isoformat()
+        return Task(
+            title=self.title,
+            duration_minutes=self.duration_minutes,
+            priority=self.priority,
+            task_type=self.task_type,
+            notes=self.notes,
+            frequency=self.frequency,
+            due_date=next_due,
+        )
+
     def to_dict(self) -> dict:
         """Returns all attributes as a flat dictionary for display or serialisation."""
         return {
@@ -62,6 +86,8 @@ class Task:
             "task_type": self.task_type,
             "notes": self.notes,
             "status": self.status,
+            "frequency": self.frequency,
+            "due_date": self.due_date,
         }
 
 
@@ -268,6 +294,51 @@ class Schedule:
             f"\nTotal scheduled: {self.get_total_duration()} / {self.owner.available_minutes} min"
         )
         return "\n".join(lines)
+
+    def sort_by_time(self) -> list[dict]:
+        """
+        Returns scheduled entries sorted chronologically by start_time.
+        Uses a lambda key on the HH:MM string — lexicographic order works
+        correctly for zero-padded 24-hour times.
+        """
+        return sorted(self.entries, key=lambda entry: entry["start_time"])
+
+    def filter_by_status(self, status: str) -> list[Task]:
+        """
+        Returns this pet's tasks filtered by completion status.
+        Args:
+            status: "pending" or "completed"
+        """
+        return [t for t in self.pet.tasks if t.status == status]
+
+    @staticmethod
+    def find_conflicts(schedules: "list[Schedule]") -> list[str]:
+        """
+        Detects time-slot overlaps across multiple pet schedules.
+        Two entries conflict when one starts before the other ends
+        (standard interval-overlap test).  Returns warning strings —
+        never raises, so callers can decide how to handle conflicts.
+        """
+        warnings: list[str] = []
+        # Flatten: [(pet_name, entry), ...]
+        all_entries = [
+            (sched.pet.name, entry)
+            for sched in schedules
+            for entry in sched.entries
+        ]
+        for i, (pet_a, ea) in enumerate(all_entries):
+            for pet_b, eb in all_entries[i + 1:]:
+                if pet_a == pet_b:
+                    continue  # same pet — sequential, never self-conflicts
+                # HH:MM strings are lexicographically comparable
+                if ea["start_time"] < eb["end_time"] and eb["start_time"] < ea["end_time"]:
+                    warnings.append(
+                        f"CONFLICT: {pet_a}'s '{ea['task'].title}' "
+                        f"({ea['start_time']}–{ea['end_time']}) overlaps with "
+                        f"{pet_b}'s '{eb['task'].title}' "
+                        f"({eb['start_time']}–{eb['end_time']})"
+                    )
+        return warnings
 
     def display(self) -> list[dict]:
         """
