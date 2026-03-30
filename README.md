@@ -6,7 +6,7 @@
 
 ## 📸 Demo
 
-<a href='https://postimg.cc/gXqMHygz' target='_blank'><img src='https://i.postimg.cc/gXqMHygz/uml-final.png' border='0' alt='uml-final'></a>
+<a href='https://postimg.cc/SYxGLB2m' target='_blank'><img src='https://i.postimg.cc/SYxGLB2m/pawpal-screenshot.png' border='0' alt='pawpal-screenshot'></a>
 
 <a href="/course_images/ai110/pawpal_screenshot.png" target="_blank"><img src='/course_images/ai110/pawpal_screenshot.png' title='PawPal App' width='' alt='PawPal App' class='center-block' /></a>
 
